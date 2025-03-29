@@ -9,3 +9,7 @@ class YandexUser(BaseModel):
     first_name: str 
     last_name: str
     sex: str
+
+class AccessToken(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

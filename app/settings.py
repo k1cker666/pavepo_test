@@ -33,6 +33,7 @@ class Settings(BaseSettings):
         env_file='.env', env_prefix="app_", env_file_encoding="utf-8", extra="ignore",
     )
     secret_key: str
+    algorithm: str
 
     postgresql: PostgreSQLSettings = PostgreSQLSettings()
     yandex: YandexSettings = YandexSettings()
