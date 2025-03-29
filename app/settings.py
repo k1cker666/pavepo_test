@@ -25,9 +25,15 @@ class YandexSettings(BaseSettings):
     )
     client_id: str
     client_secret: str
+    redirect_uri: str
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file='.env', env_prefix="app_", env_file_encoding="utf-8", extra="ignore",
+    )
+    secret_key: str
+
     postgresql: PostgreSQLSettings = PostgreSQLSettings()
     yandex: YandexSettings = YandexSettings()
 
