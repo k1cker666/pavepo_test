@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 
 from app.settings import settings
 from app.deps import http_client_dep
-from app.routers.auth.services import get_data_for_token_request
+from app.routers.auth.services import get_token, get_user_from_yandex
 
 router = APIRouter(
     prefix="/auth",
@@ -11,8 +11,6 @@ router = APIRouter(
 )
 
 YANDEX_AUTHRIZE_URL = "https://oauth.yandex.ru/authorize?response_type=code&client_id={}&redirect_uri={}"
-YANDEX_TOKEN_URL = "https://oauth.yandex.ru/token"
-YANDEX_USERINFO_URL = "https://login.yandex.ru/info"
 
 
 @router.get(
@@ -34,28 +32,11 @@ def yandex_auth():
     ),
 )
 async def yandex_callback(code: str, http_client: http_client_dep):
-    token_resp = await http_client.post(YANDEX_TOKEN_URL, data=get_data_for_token_request(code))
-    if token_resp.status_code != 200:
-        raise HTTPException(
-            status_code=token_resp.status_code,
-            detail="Не удалось получить токен от Яндекса"
-        )
-
-    token_json = token_resp.json()
-    access_token = token_json.get("access_token")
-    if not access_token:
+    token = await get_token(code, http_client)
+    if not token.access_token:
         raise HTTPException(status_code=400, detail="Ответ не содержит access_token")
-
-    headers = {"Authorization": f"OAuth {access_token}"}
-    userinfo_resp = await http_client.get(YANDEX_USERINFO_URL, headers=headers)
-    if userinfo_resp.status_code != 200:
-        raise HTTPException(
-            status_code=userinfo_resp.status_code,
-            detail="Не удалось получить данные пользователя от Яндекса"
-        )
-    user_info = userinfo_resp.json()
-
+    yandex_user = await get_user_from_yandex(token, http_client)
     return JSONResponse({
-        "user_info": user_info,
-        "yandex_access_token": access_token
+        "user_info": yandex_user.model_dump(),
+        "yandex_access_token": token.access_token
     })
