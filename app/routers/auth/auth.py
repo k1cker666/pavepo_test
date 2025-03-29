@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
-from httpx import AsyncClient
 
 from app.settings import settings
 from app.deps import http_client_dep
+from app.routers.auth.services import get_data_for_token_request
 
 router = APIRouter(
     prefix="/auth",
@@ -24,6 +24,7 @@ def yandex_auth():
     auth_url = YANDEX_AUTHRIZE_URL.format(settings.yandex.client_id, settings.yandex.redirect_uri)
     return RedirectResponse(auth_url)
 
+
 @router.get(
     "/yandex/callback",
     summary="Обрабатываем код",
@@ -33,14 +34,7 @@ def yandex_auth():
     ),
 )
 async def yandex_callback(code: str, http_client: http_client_dep):
-    data = {
-        "grant_type": "authorization_code",
-        "code": code,
-        "client_id": settings.yandex.client_id,
-        "client_secret": settings.yandex.client_secret,
-    }
-
-    token_resp = await http_client.post(YANDEX_TOKEN_URL, data=data)
+    token_resp = await http_client.post(YANDEX_TOKEN_URL, data=get_data_for_token_request(code))
     if token_resp.status_code != 200:
         raise HTTPException(
             status_code=token_resp.status_code,
