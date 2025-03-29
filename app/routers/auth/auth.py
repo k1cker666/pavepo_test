@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
 
 from app.settings import settings
-from app.deps import http_client_dep
-from app.routers.auth.services import get_token, get_user_from_yandex
+from app.deps import http_client_dep, session_dep
+from app.routers.auth.services import get_token, get_user_from_yandex, get_user_by_yandex_id, create_user_by_yandex_info
 
 router = APIRouter(
     prefix="/auth",
@@ -31,11 +31,18 @@ def yandex_auth():
     "- Запрашиваем информацию о пользователе"
     ),
 )
-async def yandex_callback(code: str, http_client: http_client_dep):
+async def yandex_callback(code: str, http_client: http_client_dep, session: session_dep):
     token = await get_token(code, http_client)
     if not token.access_token:
         raise HTTPException(status_code=400, detail="Ответ не содержит access_token")
+
     yandex_user = await get_user_from_yandex(token, http_client)
+
+    existing_user = await get_user_by_yandex_id(session, yandex_user)
+    if existing_user:
+        user = existing_user
+    else:
+        user = await create_user_by_yandex_info(session, yandex_user)
     return JSONResponse({
         "user_info": yandex_user.model_dump(),
         "yandex_access_token": token.access_token

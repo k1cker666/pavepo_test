@@ -1,10 +1,12 @@
-from pprint import pprint
 from fastapi import HTTPException
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
 from app.routers.auth.type import Token
 from app.routers.auth.schemas import YandexUser
+from app.routers.auth.models import User
 
 
 YANDEX_TOKEN_URL = "https://oauth.yandex.ru/token"
@@ -36,3 +38,14 @@ async def get_user_from_yandex(token: Token, http_client: AsyncClient) -> Yandex
             detail="Не удалось получить данные пользователя от Яндекса"
         )
     return YandexUser(**userinfo_resp.json())
+
+async def get_user_by_yandex_id(session: AsyncSession, yandex_user: YandexUser) -> User | None:
+    query = select(User).filter(User.yandex_id == yandex_user.yandex_id)
+    result = await session.execute(query)
+    return result.scalar_one_or_none()
+
+async def create_user_by_yandex_info(session: AsyncSession, yandex_user: YandexUser) -> User:
+    new_user = User(**yandex_user.model_dump())
+    session.add(new_user)
+    await session.commit()
+    return new_user
