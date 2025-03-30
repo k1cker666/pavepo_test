@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Response, status
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 
 from app.settings import settings
@@ -10,7 +11,9 @@ from app.routers.auth.services import (
     get_user_by_yandex_id,
     create_user_by_yandex_info,
     create_access_token,
-    create_refresh_token
+    create_refresh_token,
+    is_token_expired,
+    authenticate_user
 )
 
 router = APIRouter(
@@ -30,7 +33,7 @@ def yandex_auth():
     return RedirectResponse(auth_url)
 
 
-@router.post(
+@router.get(
     "/yandex/callback",
     summary="Обрабатываем код",
     description=(
@@ -38,7 +41,8 @@ def yandex_auth():
     "- Запрашиваем информацию о пользователе\n"
     "- Генерируем внутренние JWT токены"
     ),
-    status_code=status.HTTP_200_OK
+    status_code=status.HTTP_200_OK,
+    response_model=AccessToken,
 )
 async def yandex_callback(
     code: str,
@@ -48,7 +52,7 @@ async def yandex_callback(
 ) -> AccessToken:
     token = await get_token(code, http_client)
     if not token.access_token:
-        raise HTTPException(status_code=400, detail="Ответ не содержит access_token")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ответ не содержит access_token")
 
     yandex_user = await get_user_from_yandex(token, http_client)
 
@@ -63,4 +67,19 @@ async def yandex_callback(
 
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True)
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return AccessToken(access_token=access_token)
+
+@router.post(
+    "/token/refresh",
+    summary="Обновляем access_token",
+    response_model=AccessToken,
+)
+async def refresh_token(request: Request, session: session_dep) -> AccessToken:
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh_token не найден")
+    if is_token_expired(refresh_token):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Refresh_token истек")
+    user = await authenticate_user(session, refresh_token)
+    access_token = create_access_token(user.yandex_id, user.id)
+    return AccessToken(access_token=access_token)

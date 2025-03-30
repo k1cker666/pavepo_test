@@ -1,9 +1,9 @@
 from datetime import UTC, datetime, timedelta
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from jose import jwt
+from jose import jwt, JWTError
 
 from app.settings import settings
 from app.routers.auth.type import YandexToken
@@ -65,4 +65,28 @@ def create_refresh_token(user_yandex_id: str, user_id: int):
     return __create_token(user_yandex_id, user_id, timedelta(days=14))
 
 def decode_token(token):
-    return jwt.decode(token, settings.secret_key, algorithm=settings.algorithm)
+    return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+
+def is_token_expired(token: str):
+    try:
+        payload = decode_token(token)
+        if datetime.fromtimestamp(payload.get('exp'), UTC) > datetime.now(UTC):
+            return False
+        return True
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Ошибка валидации пользователя")
+
+async def authenticate_user(session: AsyncSession, token: str):
+    try:
+        payload = decode_token(token)
+        user_yandex_id = payload.get("sub")
+        if not user_yandex_id:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Ошибка валидации пользователя")
+        query = select(User).filter(User.yandex_id == user_yandex_id)
+        result = await session.execute(query)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не зарегестрирован")
+        return user
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный payload")
