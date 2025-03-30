@@ -8,6 +8,7 @@ from app.deps import http_client_dep, session_dep
 from app.routers.auth.schemas import AccessToken, Credentials
 from app.routers.auth.models import User
 from app.routers.auth.services import (
+    get_auth_user_for_refresh,
     get_current_user,
     get_token,
     get_user_from_yandex,
@@ -19,7 +20,6 @@ from app.routers.auth.services import (
     authenticate_user,
     set_username_and_password
 )
-from app.utils import get_current_auth_user
 
 router = APIRouter(
     prefix="/auth",
@@ -118,6 +118,6 @@ async def login_for_access_token(
     summary="Обновляем access_token",
     response_model=AccessToken,
 )
-async def refresh_token(user: Annotated[User, Depends(get_current_auth_user)]) -> AccessToken:
+async def refresh_token(user: Annotated[User, Depends(get_auth_user_for_refresh)]):
     access_token = create_access_token(user.yandex_id, user.id)
     return AccessToken(access_token=access_token)
