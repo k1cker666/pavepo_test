@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     )
     secret_key: str
     algorithm: str
-    storage_path: Path = BASE_DIR / "audio_storage"
+    audio_storage_path: Path = BASE_DIR / "audio_storage"
 
     postgresql: PostgreSQLSettings = PostgreSQLSettings()
     yandex: YandexSettings = YandexSettings()

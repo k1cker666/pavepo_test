@@ -1,7 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
-class AudioSchema(BaseModel):
-    id: int
+class AudioUpload(BaseModel):
     name: str
+
+
+class AudioSchema(AudioUpload):
+    model_config = ConfigDict(extra="ignore", from_attributes=True)
+
+    id: int
     path: str

@@ -1,13 +1,12 @@
-from typing import Annotated
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from typing import Annotated, List
+from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi.responses import JSONResponse
 
 from app.deps import session_dep
-from app.routers.audio.models import AudioFile
 from app.routers.audio.schemas import AudioSchema
+from app.routers.audio.services import get_list_audio_files, upload_file
 from app.routers.auth.models import User
 from app.utils import get_current_auth_user
-
 
 router = APIRouter(
     prefix="/audio",
@@ -15,13 +14,30 @@ router = APIRouter(
 )
 
 @router.get(
-    "/audio"
+    "/",
+    response_model=List[AudioSchema],
+    summary="Получение списка загруженных аудиофайлов пользователем",
+    status_code=status.HTTP_200_OK
 )
-async def get_user_audio_list(
+async def get_file_list(
     session: session_dep,
     user: Annotated[User, Depends(get_current_auth_user)]
 ):
-    query = select(AudioFile).filter(AudioFile.user == user)
-    result = await session.execute(query)
-    audio = result.scalars().all()
-    return [AudioSchema.model_dump(audio_) for audio_ in audio]
+    audio = await get_list_audio_files(session, user)
+    return [AudioSchema.model_validate(audio_) for audio_ in audio]
+
+@router.post(
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    response_model=AudioSchema,
+    summary="Загрузка аудио файла",
+    description="В новом названии расширение передавать не нужно"
+)
+async def upload_audio_file(
+    session: session_dep,
+    file_name: str,
+    user: Annotated[User, Depends(get_current_auth_user)],
+    file: UploadFile = File(...),
+):
+    audio_file = await upload_file(session, user, file, file_name)
+    return AudioSchema.model_validate(audio_file)
