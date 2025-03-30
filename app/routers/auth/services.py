@@ -5,6 +5,7 @@ import bcrypt
 from fastapi import HTTPException, status
 from httpx import AsyncClient
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt, JWTError
 
@@ -106,9 +107,16 @@ async def set_username_and_password(
     credentials: Credentials,
     current_user: User
 ) -> None:
-    current_user.username = credentials.username
-    current_user.hashed_password = hash_password(credentials.password)
-    await session.commit()
+    try:
+        current_user.username = credentials.username
+        current_user.hashed_password = hash_password(credentials.password)
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username уже существует"
+        )
 
 async def authenticate_user(
     session: AsyncSession,
