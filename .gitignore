@@ -11,6 +11,4 @@ wheels/
 
 test.py
 .ruff_cache
-.env
-tool.py
 audio_storage/

@@ -16,4 +16,5 @@ class User(Base):
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     sex: Mapped[str] = mapped_column(String(20), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    audio_files = relationship("AudioFile", back_populates="user", cascade="all, delete-orphan")
+
+    audio_files = relationship("AudioFile", back_populates="user", passive_deletes=True)
