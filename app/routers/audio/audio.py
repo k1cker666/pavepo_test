@@ -1,10 +1,10 @@
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, File, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.deps import session_dep
 from app.routers.audio.schemas import AudioSchema
-from app.routers.audio.services import get_list_audio_files, upload_file
+from app.routers.audio.services import get_file_by_id, get_list_audio_files, upload_file
 from app.routers.auth.models import User
 from app.utils import get_current_auth_user
 
@@ -41,3 +41,16 @@ async def upload_audio_file(
 ):
     audio_file = await upload_file(session, user, file, file_name)
     return AudioSchema.model_validate(audio_file)
+
+@router.get(
+    "/{file_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Скачать загруженный файл"
+)
+async def get_audio_file(
+    session: session_dep,
+    file_id: int,
+    user: Annotated[User, Depends(get_current_auth_user)],
+):
+    file = await get_file_by_id(session, file_id, user)
+    return FileResponse(file.path, media_type="audio/mpeg", filename=file.name)

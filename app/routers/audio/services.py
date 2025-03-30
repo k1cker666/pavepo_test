@@ -59,3 +59,18 @@ async def upload_file(
         )
     await session.refresh(new_audio)
     return new_audio
+
+async def get_file_by_id(
+    session: AsyncSession,
+    file_id: int,
+    user: User
+) -> AudioFile:
+    query = select(AudioFile).filter(AudioFile.id == file_id).filter(AudioFile.user == user)
+    result = await session.execute(query)
+    audio_file = result.scalar_one_or_none()
+    if not audio_file:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Файл не существует"
+        )
+    return audio_file
