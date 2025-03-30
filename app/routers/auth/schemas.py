@@ -1,6 +1,12 @@
 from pydantic import BaseModel, EmailStr, Field, AliasChoices, ConfigDict
 
 
+class YandexToken(BaseModel):
+    token_type: str
+    access_token: str
+    expires_in: int
+    refresh_token: str
+
 class YandexUser(BaseModel):
     model_config = ConfigDict(extra='ignore')
 

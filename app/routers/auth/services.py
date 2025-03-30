@@ -1,17 +1,17 @@
 from datetime import UTC, datetime, timedelta
-from typing import Optional
+from typing import Annotated
 
 import bcrypt
-from fastapi import HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from jose import jwt, JWTError
+from jose import ExpiredSignatureError, jwt, JWTError
 
+from app.deps import session_dep
 from app.settings import settings
-from app.routers.auth.type import YandexToken
-from app.routers.auth.schemas import Credentials, YandexUser
+from app.routers.auth.schemas import Credentials, YandexUser, YandexToken
 from app.routers.auth.models import User
 
 
@@ -122,7 +122,7 @@ async def authenticate_user(
     session: AsyncSession,
     username: str,
     password: str,
-) -> Optional[User]:
+) -> User:
     query = select(User).filter(User.username == username)
     result = await session.execute(query)
     user = result.scalar_one_or_none()
@@ -135,5 +135,46 @@ async def authenticate_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Имя пользователя или пароль неверны"
+        )
+    return user
+
+def get_current_refresh_token_payload(
+    refresh_token: str = Cookie(None)
+) -> dict:
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Токен не найден"
+        )
+    try:
+        payload = decode_token(refresh_token)
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Токен истек"
+        )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Токен не валиден"
+        )
+    return payload
+
+async def get_auth_user_for_refresh(
+    refresh_token_payload: Annotated[dict, Depends(get_current_refresh_token_payload)],
+    session: session_dep,
+):
+    if not (sub := refresh_token_payload.get("sub")):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credentials не переданы"
+        )
+
+    query = select(User).filter(User.yandex_id == sub)
+    result = await session.execute(query)
+    if not (user := result.scalar_one_or_none()):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Пользователь не найден"
         )
     return user
