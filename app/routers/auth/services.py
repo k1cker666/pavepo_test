@@ -1,5 +1,8 @@
 from datetime import UTC, datetime, timedelta
-from fastapi import HTTPException, status
+from typing import Annotated
+
+import bcrypt
+from fastapi import Depends, HTTPException, status
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +10,7 @@ from jose import jwt, JWTError
 
 from app.settings import settings
 from app.routers.auth.type import YandexToken
-from app.routers.auth.schemas import YandexUser
+from app.routers.auth.schemas import Credentials, YandexUser
 from app.routers.auth.models import User
 
 
@@ -76,7 +79,7 @@ def is_token_expired(token: str):
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Ошибка валидации пользователя")
 
-async def authenticate_user(session: AsyncSession, token: str):
+async def get_current_user(session: AsyncSession, token: str):
     try:
         payload = decode_token(token)
         user_yandex_id = payload.get("sub")
@@ -90,3 +93,18 @@ async def authenticate_user(session: AsyncSession, token: str):
         return user
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный payload")
+
+def hash_password(password: str) -> bytes:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def check_password(password: str, hashed_password: bytes) -> bool:
+    return bcrypt.checkpw(password.encode(), hashed_password)
+
+async def set_username_and_password(
+    session: AsyncSession,
+    credentials: Credentials,
+    current_user: User
+):
+    current_user.username = credentials.username
+    current_user.hashed_password = hash_password(credentials.password)
+    await session.commit()

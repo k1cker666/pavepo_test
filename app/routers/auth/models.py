@@ -10,6 +10,8 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     yandex_id: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    username: Mapped[str] = mapped_column(String(255), nullable=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=True)
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     sex: Mapped[str] = mapped_column(String(20), nullable=False)

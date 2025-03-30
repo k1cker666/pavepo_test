@@ -1,11 +1,13 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.settings import settings
 from app.deps import http_client_dep, session_dep
-from app.routers.auth.schemas import AccessToken
+from app.routers.auth.schemas import AccessToken, Credentials
+from app.routers.auth.models import User
 from app.routers.auth.services import (
+    get_current_user,
     get_token,
     get_user_from_yandex,
     get_user_by_yandex_id,
@@ -13,7 +15,8 @@ from app.routers.auth.services import (
     create_access_token,
     create_refresh_token,
     is_token_expired,
-    authenticate_user
+    # authenticate_user,
+    set_username_and_password
 )
 
 router = APIRouter(
@@ -69,17 +72,34 @@ async def yandex_callback(
 
     return AccessToken(access_token=access_token)
 
-@router.post(
-    "/token/refresh",
-    summary="Обновляем access_token",
-    response_model=AccessToken,
-)
-async def refresh_token(request: Request, session: session_dep) -> AccessToken:
+@router.post("/set_credentials")
+async def set_credentials(
+    credentials: Credentials,
+    request: Request,
+    session: session_dep,
+):
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh_token не найден")
     if is_token_expired(refresh_token):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Refresh_token истек")
-    user = await authenticate_user(session, refresh_token)
-    access_token = create_access_token(user.yandex_id, user.id)
-    return AccessToken(access_token=access_token)
+
+    current_user = await get_current_user(session, refresh_token)
+
+    await set_username_and_password(session, credentials, current_user)
+    return JSONResponse({"message": "Username и password установлены"})
+
+# @router.post(
+#     "/token/refresh",
+#     summary="Обновляем access_token",
+#     response_model=AccessToken,
+# )
+# async def refresh_token(request: Request, session: session_dep) -> AccessToken:
+#     refresh_token = request.cookies.get("refresh_token")
+#     if not refresh_token:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh_token не найден")
+#     if is_token_expired(refresh_token):
+#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Refresh_token истек")
+#     user = await authenticate_user(session, refresh_token)
+#     access_token = create_access_token(user.yandex_id, user.id)
+#     return AccessToken(access_token=access_token)

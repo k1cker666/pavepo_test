@@ -10,6 +10,19 @@ class YandexUser(BaseModel):
     last_name: str
     sex: str
 
+class Credentials(BaseModel):
+    username: str
+    password: str
+
 class AccessToken(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class UserSchema(BaseModel):
+    model_config = ConfigDict(extra='ignore', from_attributes=True)
+
+    id: int
+    email: EmailStr
+    first_name: str
+    last_name: str
+    sex: str
