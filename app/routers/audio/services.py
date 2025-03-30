@@ -52,7 +52,7 @@ async def upload_file(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Такое имя уже существует"
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Файл не удалось сохранить"

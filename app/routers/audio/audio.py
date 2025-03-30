@@ -1,6 +1,6 @@
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, File, UploadFile, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 
 from app.deps import session_dep
 from app.routers.audio.schemas import AudioSchema

@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from app.db import Base
