@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2AuthorizationCodeBearer
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from jose.exceptions import ExpiredSignatureError, JWTError
 
@@ -10,12 +10,13 @@ from app.routers.auth.services import decode_token
 from app.routers.auth.models import User
 
 
-http_bearer = HTTPBearer()
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/auth/token",
+)
 
 def get_current_token_payload(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)] 
+    token: Annotated[str, Depends(oauth2_scheme)] 
 ) -> dict:
-    token = credentials.credentials
     try:
         payload = decode_token(token)
     except ExpiredSignatureError:
@@ -30,7 +31,7 @@ def get_current_token_payload(
         )
     return payload
 
-async def get_current_user(
+async def get_current_auth_user(
     payload: Annotated[dict, Depends(get_current_token_payload)],
     session: session_dep,
 ) -> User:

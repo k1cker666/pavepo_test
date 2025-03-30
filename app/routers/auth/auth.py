@@ -1,6 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.security import OAuth2PasswordRequestForm
 
 from app.settings import settings
 from app.deps import http_client_dep, session_dep
@@ -15,9 +16,10 @@ from app.routers.auth.services import (
     create_access_token,
     create_refresh_token,
     is_token_expired,
-    # authenticate_user,
+    authenticate_user,
     set_username_and_password
 )
+from app.utils import get_current_auth_user
 
 router = APIRouter(
     prefix="/auth",
@@ -69,10 +71,13 @@ async def yandex_callback(
     refresh_token = create_refresh_token(user.yandex_id, user.id)
 
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True)
-
     return AccessToken(access_token=access_token)
 
-@router.post("/set_credentials")
+@router.post(
+    "/set_credentials",
+    summary="Устанавливаем пользователю данные для входы",
+    status_code=status.HTTP_200_OK,
+)
 async def set_credentials(
     credentials: Credentials,
     request: Request,
@@ -89,17 +94,30 @@ async def set_credentials(
     await set_username_and_password(session, credentials, current_user)
     return JSONResponse({"message": "Username и password установлены"})
 
-# @router.post(
-#     "/token/refresh",
-#     summary="Обновляем access_token",
-#     response_model=AccessToken,
-# )
-# async def refresh_token(request: Request, session: session_dep) -> AccessToken:
-#     refresh_token = request.cookies.get("refresh_token")
-#     if not refresh_token:
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh_token не найден")
-#     if is_token_expired(refresh_token):
-#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Refresh_token истек")
-#     user = await authenticate_user(session, refresh_token)
-#     access_token = create_access_token(user.yandex_id, user.id)
-#     return AccessToken(access_token=access_token)
+@router.post(
+    "/token",
+    summary="Выпускаем access_token",
+    response_model=AccessToken,
+    status_code=status.HTTP_200_OK
+)
+async def login_for_access_token(
+    session: session_dep,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    response: Response,
+):
+    user = await authenticate_user(session, form_data.username, form_data.password)
+
+    access_token = create_access_token(user.yandex_id, user.id)
+    refresh_token = create_refresh_token(user.yandex_id, user.id)
+
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True)
+    return AccessToken(access_token=access_token)
+
+@router.post(
+    "/token/refresh",
+    summary="Обновляем access_token",
+    response_model=AccessToken,
+)
+async def refresh_token(user: Annotated[User, Depends(get_current_auth_user)]) -> AccessToken:
+    access_token = create_access_token(user.yandex_id, user.id)
+    return AccessToken(access_token=access_token)
