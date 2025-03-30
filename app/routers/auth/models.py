@@ -1,5 +1,5 @@
 from sqlalchemy import String, Integer, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
@@ -16,3 +16,4 @@ class User(Base):
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     sex: Mapped[str] = mapped_column(String(20), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    audio_files = relationship("AudioFile", back_populates="user", cascade="all, delete-orphan")
