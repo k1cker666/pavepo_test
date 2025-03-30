@@ -49,3 +49,13 @@ async def get_current_auth_user(
             detail="Пользователь не найден"
         )
     return user
+
+async def get_current_auth_admin(
+    user: Annotated[User, Depends(get_current_auth_user)]
+) -> User:
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="У вас нет прав админа"
+        )
+    return user
