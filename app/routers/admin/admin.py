@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.db import Base
 from app.deps import engine, session_dep
-from app.routers.admin.services import make_user_admin
+from app.routers.admin.services import delete_user_by_id, make_user_admin
 from app.routers.auth.models import User
 from app.utils import get_current_auth_user, get_current_auth_admin
 
@@ -47,4 +47,5 @@ async def delete_user(
     session: session_dep,
     admin: Annotated[User, Depends(get_current_auth_admin)]
 ):
-    return {"user_id": user_id}
+    await delete_user_by_id(session, user_id)
+    return {"message": f"Пользователь с id {user_id} удален"}
