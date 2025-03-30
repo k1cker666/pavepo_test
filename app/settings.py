@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class PostgreSQLSettings(BaseSettings):
@@ -34,6 +39,7 @@ class Settings(BaseSettings):
     )
     secret_key: str
     algorithm: str
+    storage_path: Path = BASE_DIR / "audio_storage"
 
     postgresql: PostgreSQLSettings = PostgreSQLSettings()
     yandex: YandexSettings = YandexSettings()

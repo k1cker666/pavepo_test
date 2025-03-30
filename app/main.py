@@ -6,6 +6,7 @@ from app.db import Base
 from app.deps import engine
 from app.routers.auth.auth import router as auth_router
 from app.routers.users.users import router as users_router
+from app.routers.audio.audio import router as audio_router
 
 
 app = FastAPI()
@@ -17,7 +18,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(users_router)
-
+app.include_router(audio_router)
 
 
 @app.get("/ping", status_code=status.HTTP_200_OK, tags=["test"])
