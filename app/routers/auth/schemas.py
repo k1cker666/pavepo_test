@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, AliasChoices, ConfigDict
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field
 
 
 class YandexToken(BaseModel):
@@ -8,11 +8,11 @@ class YandexToken(BaseModel):
     refresh_token: str
 
 class YandexUser(BaseModel):
-    model_config = ConfigDict(extra='ignore')
+    model_config = ConfigDict(extra="ignore")
 
     yandex_id: str = Field(validation_alias=AliasChoices("yandex_id", "id"))
     email: EmailStr = Field(validation_alias=AliasChoices("email", "default_email"))
-    first_name: str 
+    first_name: str
     last_name: str
     sex: str
 
@@ -22,10 +22,10 @@ class Credentials(BaseModel):
 
 class AccessToken(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer" # noqa: S105
 
 class UserSchema(BaseModel):
-    model_config = ConfigDict(extra='ignore', from_attributes=True)
+    model_config = ConfigDict(extra="ignore", from_attributes=True)
 
     id: int
     email: EmailStr

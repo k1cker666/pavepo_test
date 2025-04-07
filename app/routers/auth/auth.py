@@ -1,40 +1,41 @@
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.settings import settings
 from app.deps import http_client_dep, session_dep
-from app.routers.auth.schemas import AccessToken, Credentials
 from app.routers.auth.models import User
+from app.routers.auth.schemas import AccessToken, Credentials
 from app.routers.auth.services import (
+    authenticate_user,
+    create_access_token,
+    create_refresh_token,
+    create_user_by_yandex_info,
     get_auth_user_for_refresh,
     get_current_user,
     get_token,
-    get_user_from_yandex,
     get_user_by_yandex_id,
-    create_user_by_yandex_info,
-    create_access_token,
-    create_refresh_token,
+    get_user_from_yandex,
     is_token_expired,
-    authenticate_user,
-    set_username_and_password
+    set_username_and_password,
 )
+from app.settings import settings
 
 router = APIRouter(
     prefix="/auth",
     tags=["auth"],
 )
 
-YANDEX_AUTHRIZE_URL = "https://oauth.yandex.ru/authorize?response_type=code&client_id={}&redirect_uri={}"
 
 @router.get(
     "/yandex",
     summary="Получаем код от яндекса.",
     description="Перенаправление пользователя на страницу авторизации Яндекса.",
 )
-def yandex_auth():
-    auth_url = YANDEX_AUTHRIZE_URL.format(settings.yandex.client_id, settings.yandex.redirect_uri)
+def yandex_auth() -> RedirectResponse:
+    yandex_authrize_url = settings.yandex.authrize_url
+    auth_url = yandex_authrize_url.format(settings.yandex.client_id, settings.yandex.redirect_uri)
     return RedirectResponse(auth_url)
 
 
@@ -47,13 +48,12 @@ def yandex_auth():
     "- Генерируем внутренние JWT токены"
     ),
     status_code=status.HTTP_200_OK,
-    response_model=AccessToken,
 )
 async def yandex_callback(
     code: str,
     http_client: http_client_dep,
     session: session_dep,
-    response: Response
+    response: Response,
 ) -> AccessToken:
     token = await get_token(code, http_client)
     if not token.access_token:
@@ -82,7 +82,7 @@ async def set_credentials(
     credentials: Credentials,
     request: Request,
     session: session_dep,
-):
+) -> JSONResponse:
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh_token не найден")
@@ -97,14 +97,13 @@ async def set_credentials(
 @router.post(
     "/token",
     summary="Выпускаем access_token",
-    response_model=AccessToken,
-    status_code=status.HTTP_200_OK
+    status_code=status.HTTP_200_OK,
 )
 async def login_for_access_token(
     session: session_dep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     response: Response,
-):
+) -> AccessToken:
     user = await authenticate_user(session, form_data.username, form_data.password)
 
     access_token = create_access_token(user.yandex_id, user.id)
@@ -116,8 +115,7 @@ async def login_for_access_token(
 @router.post(
     "/token/refresh",
     summary="Обновляем access_token",
-    response_model=AccessToken,
 )
-async def refresh_token(user: Annotated[User, Depends(get_auth_user_for_refresh)]):
+async def refresh_token(user: Annotated[User, Depends(get_auth_user_for_refresh)]) -> AccessToken:
     access_token = create_access_token(user.yandex_id, user.id)
     return AccessToken(access_token=access_token)
